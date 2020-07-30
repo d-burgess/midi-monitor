@@ -1,14 +1,11 @@
-// information from https://tttapa.github.io/PDF/Arduino-MIDI.pdf
-
 // #include <LiquidCrystal.h> // Import the LCD library
-#include <LiquidCrystalFast.h>
+#include "src/LiquidCrystalFast/LiquidCrystalFast.h" // Import the LCD Fast library
 // LiquidCrystal lcd( 2, 3, 4, 5, 6, 7 ); // Initialize the LCD
-LiquidCrystalFast lcd(2, 8, 3, 4, 5, 6, 7);
-         // LCD pins: RS RW E  D4 D5 D6 D7
+LiquidCrystalFast lcd(2, 8, 3, 4, 5, 6, 7); // Initialize the LCD
+         // LCD pins: RS RW E  D4 D5 D6 D7  // Uses 7 pins, RW not to GND
+#include "src/FIFO/FIFO.h" // Import FIFO buffer
 
-#include "FIFO.h" // fifo buffer
-
-FIFO serialByteBuffer;
+FIFO serialByteBuffer; // edit buffer size in FIFO.h
 
 void setup() {
   Serial.begin( 31250 );
@@ -25,7 +22,7 @@ void setup() {
 const uint8_t NOTE_OFF = 0x8;
 const uint8_t NOTE_ON = 0x9;
 const uint8_t KEY_PRESSURE = 0xA;
-const uint8_t CC = 0xB;
+const uint8_t CONTROL_CHANGE = 0xB;
 const uint8_t PROGRAM_CHANGE = 0xC;
 const uint8_t CHANNEL_PRESSURE = 0xD;
 const uint8_t PITCH_BEND = 0xE;
@@ -59,7 +56,7 @@ void reportMIDI( uint8_t statusByte, uint8_t dataByte2, uint8_t dataByte3 = 0 ) 
         dataType2 = "PCH:";
         dataType3 = "PRS:";
         break;
-      case CC:
+      case CONTROL_CHANGE:
         messageType = "CNTRL CHNG";
         dataType2 = "NUM:";
         dataType3 = "VAL:";
