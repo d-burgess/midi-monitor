@@ -1,10 +1,8 @@
-// #include <LiquidCrystal.h> // Import the LCD library
 #include "src/LiquidCrystalFast/LiquidCrystalFast.h" // Import the LCD Fast library
-// LiquidCrystal lcd( 2, 3, 4, 5, 6, 7 ); // Initialize the LCD
 LiquidCrystalFast lcd(2, 8, 3, 4, 5, 6, 7); // Initialize the LCD
          // LCD pins: RS RW E  D4 D5 D6 D7  // Uses 7 pins, RW not to GND
-#include "src/FIFO/FIFO.h" // Import FIFO buffer
 
+#include "src/FIFO/FIFO.h" // Import FIFO buffer
 FIFO serialByteBuffer; // edit buffer size in FIFO.h
 
 void setup() {
