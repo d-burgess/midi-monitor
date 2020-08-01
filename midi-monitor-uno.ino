@@ -2,131 +2,30 @@
 LiquidCrystalFast lcd(2, 8, 3, 4, 5, 6, 7); // Initialize the LCD
          // LCD pins: RS RW E  D4 D5 D6 D7  // Uses 7 pins, RW not to GND
 
-#include "src/FIFO/FIFO.h" // Import FIFO buffer
-FIFO serialByteBuffer; // edit buffer size in FIFO.h
+#include "MidiMonitor.h"
 
 void setup() {
+  
   Serial.begin( 31250 );
   while ( !Serial ) delay( 1 ); // wait until the serial port has opened
   delay( 100 );
-  lcd.begin( 16, 2 ); // tell the LCD that it is a 16x2 LCD
-  lcd.setCursor( 0, 0 );
-  lcd.clear();
-  lcd.print( "MIDIMON..." );
-  lcd.setCursor( 11, 0 );
-  lcd.print( "CH:" );
+
+  initialiseLcd();
+
+  updateLcdPendingBuffer( "MIDI MONITOR ...", 0 );
+  updateLcdPendingBuffer( BLANK_ROW, 1 );
+
+  updateLcd();
+
 }
 
-const uint8_t NOTE_OFF = 0x8;
-const uint8_t NOTE_ON = 0x9;
-const uint8_t KEY_PRESSURE = 0xA;
-const uint8_t CONTROL_CHANGE = 0xB;
-const uint8_t PROGRAM_CHANGE = 0xC;
-const uint8_t CHANNEL_PRESSURE = 0xD;
-const uint8_t PITCH_BEND = 0xE;
-const uint8_t STATUS_BIT = 0b10000000;
-const uint8_t DATA_UNSTORED = 0xFF;
-
-void reportMIDI( uint8_t statusByte, uint8_t dataByte2, uint8_t dataByte3 = 0 ) {
-  
-  if ( serialByteBuffer.size() == 0 ) {
-    uint8_t messageTypeNibble = statusByte >> 4 & 0b00001111;
-    uint8_t channelNibble = statusByte & 0b00001111;
-    String channel = String( channelNibble+1 );
-    
-    String messageType;
-    String dataType2;
-    String dataType3;
-    
-    switch ( messageTypeNibble ) {
-      case NOTE_OFF:
-        messageType = "NOTE OFF  ";
-        dataType2 = "PCH:";
-        dataType3 = "VEL:";
-        break;
-      case NOTE_ON:
-        messageType = "NOTE ON   ";
-        dataType2 = "PCH:";
-        dataType3 = "VEL:";
-        break;
-      case KEY_PRESSURE:
-        messageType = "KEY PRESSR";
-        dataType2 = "PCH:";
-        dataType3 = "PRS:";
-        break;
-      case CONTROL_CHANGE:
-        messageType = "CNTRL CHNG";
-        dataType2 = "NUM:";
-        dataType3 = "VAL:";
-        break;
-      case PROGRAM_CHANGE:
-        messageType = "PRGRM CHNG";
-        dataType2 = "PGM:";
-        dataType3 = "    ";
-        break;
-      case CHANNEL_PRESSURE:
-        messageType = "CHN PRESSR";
-        dataType2 = "PRS:";
-        dataType3 = "    ";
-        break;
-      case PITCH_BEND:
-        messageType = "PITCH BEND";
-        dataType2 = "LSB:";
-        dataType3 = "MSB:";
-        break;
-      default:
-        messageType = "UNKNOWN?  ";
-        dataType2 = "    ";
-        dataType3 = "    ";
-        break;
-    }
-  
-    // Row 0
-    lcd.setCursor( 0, 0 );
-    lcd.print( messageType );
-    
-    lcd.setCursor( 14, 0 );
-    if ( channelNibble > 8 ) {
-      lcd.print( channel );
-    } else { 
-      lcd.print( "0" + channel );
-    }
-    
-    // Row 1
-    lcd.setCursor( 0, 1 );
-    lcd.print( dataType2 );
-    lcd.setCursor( 4, 1 );
-    if ( dataByte2 > 99 ) {
-      lcd.print( String( dataByte2 ) );
-    } else if ( dataByte2 > 9 ) {
-      lcd.print( "0" + String( dataByte2 ) );
-    } else {
-      lcd.print( "00" + String( dataByte2 ) );
-    }
-    
-    lcd.setCursor( 9, 1 );
-    if ( dataByte3 != DATA_UNSTORED ) {
-      lcd.print( dataType3 );
-      lcd.setCursor( 13, 1 );
-      if ( dataByte3 > 99 ) {
-        lcd.print( String( dataByte3 ) );
-      } else if ( dataByte3 > 9 ) {
-        lcd.print( "0" + String( dataByte3 ) );
-      } else {
-        lcd.print( "00" + String( dataByte3 ) );
-      }
-    } else {
-      lcd.print( "       " );
-    }
-  } // end serial byte buffer empty
-} // end reportMidi
 
 void loop() {
 
   static uint8_t serialRunningStatus; // data bytes may be repeated without status bytes
   static bool serialThirdByteFlag = false;
   
-  // read a byte from serial and add to buffer
+  // read a byte from serial and add to serial byte buffer
   if ( Serial.available() ) {
     uint8_t serialByte = Serial.read();
   
@@ -168,6 +67,9 @@ void loop() {
     } // end not header byte
   } // end serial available
 
+  // read a byte from the serial byte buffer, 
+  // write byte to output 
+  // and report if whole MIDI message is received
   if ( serialByteBuffer.size() > 0 ) {
     static uint8_t bufferRunningStatus = 0;
     static uint8_t bufferDataByte2 = DATA_UNSTORED;
