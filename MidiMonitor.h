@@ -18,6 +18,9 @@ const uint8_t PITCH_BEND = 0xE;
 const uint8_t STATUS_BIT = 0b10000000;
 const uint8_t DATA_UNSTORED = 0xFF;
 
+unsigned long previousMillis = 0;
+long refreshRate = 1;
+
 void reportMIDI( uint8_t statusByte, uint8_t dataByte2, uint8_t dataByte3 = 0 ) {
   
   if ( serialByteBuffer.size() == 0 ) {

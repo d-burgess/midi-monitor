@@ -30,7 +30,7 @@
 
 #include "Arduino.h"
 
-#define FIFO_SIZE 128
+#define FIFO_SIZE 512
 
 class FIFO {
   private:

@@ -8,13 +8,10 @@ void setup() {
   
   Serial.begin( 31250 );
   while ( !Serial ) delay( 1 ); // wait until the serial port has opened
-  delay( 100 );
 
   initialiseLcd();
-
   updateLcdPendingBuffer( "MIDI MONITOR ...", 0 );
   updateLcdPendingBuffer( BLANK_ROW, 1 );
-
   updateLcd();
 
 }
@@ -22,13 +19,16 @@ void setup() {
 
 void loop() {
 
+  unsigned long currentMillis = millis();
+
   static uint8_t serialRunningStatus; // data bytes may be repeated without status bytes
   static bool serialThirdByteFlag = false;
   
   // read a byte from serial and add to serial byte buffer
-  if ( Serial.available() ) {
+  if ( Serial.available() > 0 ) {
     uint8_t serialByte = Serial.read();
-  
+    Serial.write( serialByte );
+    previousMillis = currentMillis;
     if ( serialByte & 0b10000000 ) { // Status byte received
       serialRunningStatus = serialByte;
       serialThirdByteFlag = false;
@@ -70,50 +70,62 @@ void loop() {
   // read a byte from the serial byte buffer, 
   // write byte to output 
   // and report if whole MIDI message is received
-  if ( serialByteBuffer.size() > 0 ) {
-    static uint8_t bufferRunningStatus = 0;
-    static uint8_t bufferDataByte2 = DATA_UNSTORED;
-    static bool bufferThirdByteFlag = false;
-    
-    uint8_t bufferByte = serialByteBuffer.pop();
-    Serial.write(bufferByte);
-    
-    if ( bufferByte & 0b10000000 ) { // Status byte received
-      bufferRunningStatus = bufferByte;
-      bufferThirdByteFlag = false;
-    } else {
-      if ( bufferThirdByteFlag ) { // Second data byte received
-        bufferThirdByteFlag = false;
-        reportMIDI( bufferRunningStatus, bufferDataByte2, bufferByte );
-        bufferDataByte2 = DATA_UNSTORED;
-        return;
-      } else { // First data byte received
-        if ( !bufferRunningStatus ) { // no status byte
-          return; // ignore invalid data byte
+  if ( Serial.available() == 0 ) {
+    if ( serialByteBuffer.size() > 0 ) {
+      if ( serialByteBuffer.size() >= ( FIFO_SIZE - 1) ) {
+        lcd.setCursor ( 0, 0 );
+        lcd.print( "BUFFER OVERFLOW!" );
+        exit( 0 );
+      }
+      if ( currentMillis - previousMillis >= refreshRate ) {
+        
+        previousMillis = currentMillis;
+        
+        static uint8_t bufferRunningStatus = 0;
+        static uint8_t bufferDataByte2 = DATA_UNSTORED;
+        static bool bufferThirdByteFlag = false;
+        
+        uint8_t bufferByte = serialByteBuffer.pop();
+        // Serial.write(bufferByte);
+        
+        if ( bufferByte & 0b10000000 ) { // Status byte received
+          bufferRunningStatus = bufferByte;
+          bufferThirdByteFlag = false;
         } else {
-          if ( bufferRunningStatus < 0xC0 ) { // Note Off/On, Key Pressure or Control Change
-            bufferThirdByteFlag = true;
-            bufferDataByte2 = bufferByte;
-            //
+          if ( bufferThirdByteFlag ) { // Second data byte received
+            bufferThirdByteFlag = false;
+            reportMIDI( bufferRunningStatus, bufferDataByte2, bufferByte );
+            bufferDataByte2 = DATA_UNSTORED;
             return;
-          }
-          if ( bufferRunningStatus < 0xE0 ) { // Program Change or Channel Pressure
-            reportMIDI( bufferRunningStatus, bufferByte, DATA_UNSTORED );
-            //
-            return;
-          }
-          if ( bufferRunningStatus < 0xF0 ) { // Pitch Bend
-            bufferThirdByteFlag = true;
-            bufferDataByte2 = bufferByte;
-            //
-            return;
-          } else { // System message
-            bufferRunningStatus = 0;
-            return;
-          }
-        } // end running status buffer not empty 
-      } // end not third data byte
-    } // end not header byte
-  } // end buffer not empty
+          } else { // First data byte received
+            if ( !bufferRunningStatus ) { // no status byte
+              return; // ignore invalid data byte
+            } else {
+              if ( bufferRunningStatus < 0xC0 ) { // Note Off/On, Key Pressure or Control Change
+                bufferThirdByteFlag = true;
+                bufferDataByte2 = bufferByte;
+                //
+                return;
+              }
+              if ( bufferRunningStatus < 0xE0 ) { // Program Change or Channel Pressure
+                reportMIDI( bufferRunningStatus, bufferByte, DATA_UNSTORED );
+                //
+                return;
+              }
+              if ( bufferRunningStatus < 0xF0 ) { // Pitch Bend
+                bufferThirdByteFlag = true;
+                bufferDataByte2 = bufferByte;
+                //
+                return;
+              } else { // System message
+                bufferRunningStatus = 0;
+                return;
+              }
+            } // end running status buffer not empty 
+          } // end not third data byte
+        } // end not header byte
+      } // end refresh rate reached
+    } // end buffer not empty
+  }
   
 } // end loop
