@@ -8,6 +8,20 @@
 #include "src/FIFO/FIFO.h" // Import FIFO buffer
 FIFO serialByteBuffer; // edit buffer size in FIFO.h
 
+// Set serial port
+#if defined( TEENSYDUINO ) 
+  #if defined( __MK20DX256__ )       
+    #define BOARD "Teensy 3.2"
+    #define HWSERIAL Serial1
+  #endif
+#elif defined( ARDUINO_AVR_UNO )       
+  #define BOARD "Arduino Uno"
+  #define HWSERIAL Serial
+#else
+  #define BOARD "Unknown"
+  #define HWSERIAL Serial
+#endif
+
 const uint8_t NOTE_OFF = 0x8;
 const uint8_t NOTE_ON = 0x9;
 const uint8_t KEY_PRESSURE = 0xA;
@@ -18,8 +32,8 @@ const uint8_t PITCH_BEND = 0xE;
 const uint8_t STATUS_BIT = 0b10000000;
 const uint8_t DATA_UNSTORED = 0xFF;
 
-unsigned long previousMillis = 0;
-long refreshRate = 1;
+unsigned long previousMicros = 0;
+unsigned long refreshRate = 75; // microseconds
 
 void reportMIDI( uint8_t statusByte, uint8_t dataByte2, uint8_t dataByte3 = 0 ) {
   
