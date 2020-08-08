@@ -1,2 +1,2 @@
-# midi-monitor-uno
- Arduino UNO based MIDI monitor
+# MidiMonitor
+ Arduino UNO/Teensy 3.2 based MIDI monitor
